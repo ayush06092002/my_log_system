@@ -5,7 +5,9 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
+from sqlalchemy import or_
 from datetime import datetime
+from flask import render_template
 app = Flask(__name__)
 
 # Configure PostgreSQL database
@@ -106,7 +108,7 @@ def query_logs():
     try:
         # Extract query parameters from the request
         query_params = request.args.to_dict()
-
+        print(query_params)
         # Define allowed search fields
         allowed_fields = ['level', 'message', 'resourceId', 'timestamp', 'traceId', 'spanId', 'commit', 'parentResourceId']
 
@@ -118,11 +120,14 @@ def query_logs():
         start_date = datetime.strptime(start_date_str, "%Y-%m-%dT%H:%M:%SZ") if start_date_str else None
         end_date = datetime.strptime(end_date_str, "%Y-%m-%dT%H:%M:%SZ") if end_date_str else None
 
-        # Build the filter conditions
+        # Initialize the base query
+        base_query = Log.query
+
+        # Build the filter conditions dynamically
         filters = []
         for field, value in query_params.items():
             if field in allowed_fields:
-                filters.append(getattr(Log, field).ilike(f'%{value}%'))
+                filters.append(or_(getattr(Log, field).ilike(f'%{value}%')))
 
         # Add timestamp range filter
         if start_date:
@@ -130,31 +135,36 @@ def query_logs():
         if end_date:
             filters.append(Log.timestamp <= end_date)
 
-        # Perform the query
-        with app.app_context():
-            if filters:
-                logs = Log.query.filter(and_(*filters)).order_by(Log.timestamp.desc()).limit(100).all()
-            else:
-                logs = Log.query.order_by(Log.timestamp.desc()).limit(100).all()
+        # Apply filters to the base query
+        if filters:
+            dynamic_filter = and_(*filters)
+            logs = base_query.filter(dynamic_filter).order_by(Log.timestamp.desc()).limit(100).all()
+        else:
+            logs = base_query.order_by(Log.timestamp.desc()).limit(100).all()
 
-        log_list = []
-        for log in logs:
-            log_dict = {
+        # Convert results to JSON-friendly format
+        log_list = [
+            {
                 'level': log.level,
                 'message': log.message,
                 'resourceId': log.resourceId,
-                'timestamp': log.timestamp.isoformat(),
+                'timestamp': log.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 'traceId': log.traceId,
                 'spanId': log.spanId,
                 'commit': log.commit,
                 'metadata': {'parentResourceId': log.parentResourceId} if log.parentResourceId else None
             }
-            log_list.append(log_dict)
+            for log in logs
+        ]
 
         return jsonify(log_list), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/query_ui')
+def query_ui():
+    return render_template('query_ui.html')
 
 if __name__ == "__main__":
     app.run(port=3000, debug = True)

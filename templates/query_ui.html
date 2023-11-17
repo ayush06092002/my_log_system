@@ -1,0 +1,157 @@
+<!-- templates/query_ui.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Query Interface</title>
+    <style>
+        /* Add your CSS styles here */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input, select {
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Log Query Interface</h1>
+
+    <form id="queryForm">
+        <label for="level">Level:</label>
+        <input type="text" id="level" name="level">
+    
+        <!-- Add fields for start_date, end_date, and timestamp -->
+        <label for="start_date">Start Date:</label>
+        <input type="datetime-local" id="start_date" name="start_date">
+    
+        <label for="end_date">End Date:</label>
+        <input type="datetime-local" id="end_date" name="end_date">
+    
+        <label for="message">Message:</label>
+        <input type="text" id="message" name="message">
+    
+        <label for="resourceId">Resource ID:</label>
+        <input type="text" id="resourceId" name="resourceId">
+    
+        <label for="timestamp">Timestamp:</label>
+        <input type="datetime-local" id="timestamp" name="timestamp">
+    
+        <label for="traceId">Trace ID:</label>
+        <input type="text" id="traceId" name="traceId">
+    
+        <label for="spanId">Span ID:</label>
+        <input type="text" id="spanId" name="spanId">
+    
+        <label for="commit">Commit:</label>
+        <input type="text" id="commit" name="commit">
+    
+        <label for="parentResourceId">Parent Resource ID:</label>
+        <input type="text" id="parentResourceId" name="metadata.parentResourceId">
+    
+        <button type="button" onclick="queryLogs()">Search</button>
+    </form>
+
+    <table id="logTable">
+        <thead>
+            <tr>
+                <th>Commit</th>
+                <th>Level</th>
+                <th>Message</th>
+                <th>Parent Resource ID</th>
+                <th>Resource ID</th>
+                <th>Span ID</th>
+                <th>Timestamp</th>
+                <th>Trace ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Log entries will be inserted here dynamically -->
+        </tbody>
+    </table>
+
+    <script>
+        function queryLogs() {
+            const formData = new FormData(document.getElementById('queryForm'));
+    
+            // Filter out empty values
+            const queryParams = new URLSearchParams([...formData.entries()].filter(([_, value]) => value !== ''));
+    
+            // Format start_date, end_date, and timestamp as ISO 8601 strings
+            formatDateTimeParams(queryParams, 'start_date');
+            formatDateTimeParams(queryParams, 'end_date');
+            formatDateTimeParams(queryParams, 'timestamp');
+    
+            // Update the URL with the current query parameters
+            history.replaceState(null, '', `${window.location.pathname}?${queryParams.toString()}`);
+    
+            fetch(`/query?${queryParams.toString()}`)
+                .then(response => response.json())
+                .then(data => displayLogs(data))
+                .catch(error => console.error('Error:', error));
+        }
+    
+        function formatDateTimeParams(params, paramName) {
+            const value = params.get(paramName);
+            if (value) {
+                const formattedValue = new Date(value).toISOString();
+                params.set(paramName, formattedValue);
+            }
+        }
+    
+        function displayLogs(logs) {
+            const tableBody = document.querySelector('#logTable tbody');
+            tableBody.innerHTML = '';
+    
+            logs.forEach(log => {
+                const row = tableBody.insertRow();
+                Object.values(log).forEach(value => {
+                    const cell = row.insertCell();
+                    if (value && typeof value === 'object') {
+                        // If the value is an object (e.g., metadata), extract the 'parentResourceId' value
+                        const parentResourceId = value['parentResourceId'];
+                        cell.textContent = parentResourceId !== undefined ? parentResourceId : JSON.stringify(value);
+                    } else {
+                        cell.textContent = value;
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
