@@ -3,7 +3,9 @@
 
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_
+from datetime import datetime
 app = Flask(__name__)
 
 # Configure PostgreSQL database
@@ -31,41 +33,55 @@ with app.app_context():
     db.create_all()
 
 @app.route('/ingest', methods=['POST'])
-def ingest_log():
+def ingest_logs():
     try:
-        log_data = request.get_json()
+        logs_data = request.get_json()
 
-        # Validate the required fields
-        required_fields = ['level', 'message', 'resourceId', 'timestamp']
-        for field in required_fields:
-            if field not in log_data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
+        # Ensure logs_data is a list or a single dictionary
+        if isinstance(logs_data, dict):
+            logs_data = [logs_data]
+        elif not isinstance(logs_data, list):
+            return jsonify({'error': 'Invalid JSON format. Expected a single log or a list of logs.'}), 400
 
-        # Store the log in the PostgreSQL database
-        new_log = Log(
-            level=log_data['level'],
-            message=log_data['message'],
-            resourceId=log_data['resourceId'],
-            timestamp=log_data['timestamp'],
-            traceId=log_data.get('traceId'),
-            spanId=log_data.get('spanId'),
-            commit=log_data.get('commit'),
-            parentResourceId=log_data.get('metadata', {}).get('parentResourceId')
-        )
+        for log_data in logs_data:
+            # Validate the required fields for each log
+            required_fields = ['level', 'message', 'resourceId', 'timestamp']
+            for field in required_fields:
+                if field not in log_data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
 
-        with app.app_context():
-            db.session.add(new_log)
-            db.session.commit()
+            # Store each log in the PostgreSQL database
+            new_log = Log(
+                level=log_data['level'],
+                message=log_data['message'],
+                resourceId=log_data['resourceId'],
+                timestamp=log_data['timestamp'],
+                traceId=log_data.get('traceId'),
+                spanId=log_data.get('spanId'),
+                commit=log_data.get('commit'),
+                parentResourceId=log_data.get('metadata', {}).get('parentResourceId')
+            )
 
-        return jsonify({'message': 'Log ingested successfully'}), 200
+            with app.app_context():
+                db.session.add(new_log)
+                db.session.commit()
+
+        return jsonify({'message': 'Logs ingested successfully'}), 200
+
+    except IntegrityError as e:
+        # Handle unique constraint violation (e.g., duplicate log entries)
+        return jsonify({'error': 'One or more logs already exist in the database'}), 400
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/logs', methods=['GET'])
 def get_logs():
-    with app.app_context():
-        logs = Log.query.all()
+    try:
+        # Retrieve the latest 100 logs sorted by timestamp
+        with app.app_context():
+            logs = Log.query.order_by(Log.timestamp.desc()).limit(100).all()
+
         log_list = []
         for log in logs:
             log_dict = {
@@ -80,7 +96,66 @@ def get_logs():
             }
             log_list.append(log_dict)
 
-    return jsonify(log_list), 200
+        return jsonify(log_list), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/query', methods=['GET'])
+def query_logs():
+    try:
+        # Extract query parameters from the request
+        query_params = request.args.to_dict()
+
+        # Define allowed search fields
+        allowed_fields = ['level', 'message', 'resourceId', 'timestamp', 'traceId', 'spanId', 'commit', 'parentResourceId']
+
+        # Extract start_date and end_date parameters
+        start_date_str = query_params.pop('start_date', None)
+        end_date_str = query_params.pop('end_date', None)
+
+        # Parse start_date and end_date if provided
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%dT%H:%M:%SZ") if start_date_str else None
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%dT%H:%M:%SZ") if end_date_str else None
+
+        # Build the filter conditions
+        filters = []
+        for field, value in query_params.items():
+            if field in allowed_fields:
+                filters.append(getattr(Log, field).ilike(f'%{value}%'))
+
+        # Add timestamp range filter
+        if start_date:
+            filters.append(Log.timestamp >= start_date)
+        if end_date:
+            filters.append(Log.timestamp <= end_date)
+
+        # Perform the query
+        with app.app_context():
+            if filters:
+                logs = Log.query.filter(and_(*filters)).order_by(Log.timestamp.desc()).limit(100).all()
+            else:
+                logs = Log.query.order_by(Log.timestamp.desc()).limit(100).all()
+
+        log_list = []
+        for log in logs:
+            log_dict = {
+                'level': log.level,
+                'message': log.message,
+                'resourceId': log.resourceId,
+                'timestamp': log.timestamp.isoformat(),
+                'traceId': log.traceId,
+                'spanId': log.spanId,
+                'commit': log.commit,
+                'metadata': {'parentResourceId': log.parentResourceId} if log.parentResourceId else None
+            }
+            log_list.append(log_dict)
+
+        return jsonify(log_list), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=3000, debug = True)
+    
