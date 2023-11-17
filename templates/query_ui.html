@@ -71,7 +71,7 @@
     
         <label for="timestamp">Timestamp:</label>
         <input type="datetime-local" id="timestamp" name="timestamp">
-    
+
         <label for="traceId">Trace ID:</label>
         <input type="text" id="traceId" name="traceId">
     
@@ -112,7 +112,7 @@
             // Filter out empty values
             const queryParams = new URLSearchParams([...formData.entries()].filter(([_, value]) => value !== ''));
     
-            // Format start_date, end_date, and timestamp as ISO 8601 strings
+            // Format start_date, end_date, and timestamp as custom formatted strings
             formatDateTimeParams(queryParams, 'start_date');
             formatDateTimeParams(queryParams, 'end_date');
             formatDateTimeParams(queryParams, 'timestamp');
@@ -129,7 +129,8 @@
         function formatDateTimeParams(params, paramName) {
             const value = params.get(paramName);
             if (value) {
-                const formattedValue = new Date(value).toISOString();
+                // Convert 'YYYY-MM-DDTHH:mm' to 'YYYY-MM-DDTHH:mm:ssZ'
+                const formattedValue = `${value}:00Z`;
                 params.set(paramName, formattedValue);
             }
         }

@@ -127,7 +127,11 @@ def query_logs():
         filters = []
         for field, value in query_params.items():
             if field in allowed_fields:
-                filters.append(or_(getattr(Log, field).ilike(f'%{value}%')))
+                if field == 'timestamp':
+                    # Use "=" instead of ILIKE for timestamp
+                    filters.append(getattr(Log, field) == value)
+                else:
+                    filters.append(getattr(Log, field).ilike(f'%{value}%'))
 
         # Add timestamp range filter
         if start_date:
