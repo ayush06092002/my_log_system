@@ -10,6 +10,17 @@ Here are the sample search results:
 
 ![Query Results](images/query_Result.jpg)
 
+Video Demonstrations:
+
+
+https://github.com/ayush06092002/my_log_system/assets/22142132/54aaf624-7a62-4e7a-b087-3128c3dbb96e
+
+
+
+https://github.com/ayush06092002/my_log_system/assets/22142132/4fdf891c-c1c8-411b-a967-fad2ad810b95
+
+
+
 ## Table of Contents
 
 - [Introduction](#introduction)
