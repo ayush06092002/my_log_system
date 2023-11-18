@@ -4,7 +4,7 @@ The Log Ingestion System is a scalable solution for handling and querying log da
 
 Welcome to my awesome project! Here's the interface:
 
-![Query Interface](images/query_interface.jpg)
+![Query Interface](images/query_Interface.jpg)
 
 Here are the sample search results:
 
