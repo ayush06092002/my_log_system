@@ -2,6 +2,14 @@
 
 The Log Ingestion System is a scalable solution for handling and querying log data efficiently. It includes features for log ingestion, real-time indexing, and a powerful query interface.
 
+Welcome to my awesome project! Here's the interface:
+
+![Query Interface](images/query_interface.jpg)
+
+Here are the sample search results:
+
+![Query Results](images/query_Result.jpg)
+
 ## Table of Contents
 
 - [Introduction](#introduction)
@@ -80,6 +88,7 @@ Ensure you have the following prerequisites installed:
 
     - Run this script to push the data in log_data.json file
     - It pushes the logs at 'http://127.0.0.1:3000/ingest'
+
     ```bash
     python push.py
     ```
@@ -88,6 +97,7 @@ Ensure you have the following prerequisites installed:
 
     - It is a python script that generated random logs
     - Uses a python library 'faker' to generate random sentences
+
     ```bash
     python auto_push_generator.py
     ```
@@ -95,10 +105,11 @@ Ensure you have the following prerequisites installed:
 
 ## Usage
 
-1. Use a tool like Postman to send log entries to the `/ingest` endpoint.
-2. Explore the query interface at `/query` for powerful log searching and filtering.
+1. Use a tool like Postman to send log entries to the `/ingest` endpoint, or use the files provided to push the logs.
+2. Explore the query interface at `/query_ui` for powerful log searching and filtering.
 3. Use push.py to push logs from json file.
 4. Use auto_push_generator.py to push auto generated logs.
+5. Access the query interface at 'http://127.0.0.1:3000/query_ui'
 
 
 ## API Endpoints
